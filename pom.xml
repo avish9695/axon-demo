@@ -21,6 +21,8 @@
         <ibm.mq.version>7.5.0</ibm.mq.version>
         <log4j.version>1.2.17</log4j.version>
         <slf4j.version>1.7.9</slf4j.version>
+        <jackson.version>2.3.4</jackson.version>
+        <validation-api.version>1.1.0.Final</validation-api.version>
     </properties>
 
     <build>
@@ -85,6 +87,21 @@
                 <version>${activemq.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.ibm</groupId>
                 <artifactId>com.ibm.mqjms</artifactId>
                 <version>${ibm.mq.version}</version>
@@ -118,6 +135,11 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j12</artifactId>
                 <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.validation</groupId>
+                <artifactId>validation-api</artifactId>
+                <version>${validation-api.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
