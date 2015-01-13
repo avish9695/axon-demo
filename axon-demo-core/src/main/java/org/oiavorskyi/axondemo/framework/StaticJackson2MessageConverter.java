@@ -1,4 +1,4 @@
-package org.oiavorskyi.axondemo;
+package org.oiavorskyi.axondemo.framework;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,7 +18,6 @@ public class StaticJackson2MessageConverter extends MappingJackson2MessageConver
 
     @Override
     protected JavaType getJavaTypeForMessage( Message message ) throws JMSException {
-        System.out.println(message.getJMSDestination());
         return this.targetType;
     }
 }

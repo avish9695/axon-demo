@@ -1,4 +1,4 @@
-package org.oiavorskyi.axondemo;
+package org.oiavorskyi.axondemo.framework;
 
 import org.springframework.jms.config.SimpleJmsListenerContainerFactory;
 import org.springframework.jms.listener.SimpleMessageListenerContainer;

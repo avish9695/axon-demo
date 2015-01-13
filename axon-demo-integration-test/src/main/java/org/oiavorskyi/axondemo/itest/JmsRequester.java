@@ -1,10 +1,12 @@
 package org.oiavorskyi.axondemo.itest;
 
 
+import org.oiavorskyi.axondemo.api.JmsDestinations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.core.SessionCallback;
 import org.springframework.jms.support.JmsUtils;
+import org.springframework.jms.support.destination.DestinationResolver;
 import org.springframework.stereotype.Component;
 
 import javax.jms.*;
@@ -27,20 +29,22 @@ public class JmsRequester {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private final JmsTemplate jmsTemplate;
-    private final Destination testStatusDestination;
+    private final DestinationResolver destinationResolver;
 
     @Autowired
-    public JmsRequester( final JmsTemplate jmsTemplate, final Destination testStatusDestination ) {
+    public JmsRequester( final JmsTemplate jmsTemplate,
+                         final DestinationResolver destinationResolver ) {
         this.jmsTemplate = jmsTemplate;
-        this.testStatusDestination = testStatusDestination;
+
+        this.destinationResolver = destinationResolver;
     }
 
-    public Future<String> sendRequest( final Object message, final Destination requestDest ) {
+    public Future<String> sendRequest( final Object message, final String requestDestName ) {
         return executor.submit(new Callable<String>() {
             @Override
             public String call() throws Exception {
-                return jmsTemplate.execute(new ProducerConsumer(message, requestDest,
-                        testStatusDestination), true);
+                return jmsTemplate.execute(new ProducerConsumer(message, requestDestName,
+                        destinationResolver), true);
             }
         });
     }
@@ -49,15 +53,15 @@ public class JmsRequester {
 
         private final Object msg;
 
-        private final Destination requestDestination;
+        private final String requestDestinationName;
+        private final DestinationResolver destinationResolver;
 
-        private final Destination statusReplyDestination;
 
-        public ProducerConsumer( Object msg, Destination requestDestination,
-                                 Destination statusReplyDestination ) {
+        public ProducerConsumer( Object msg, String requestDestinationName,
+                                 DestinationResolver destinationResolver ) {
             this.msg = msg;
-            this.requestDestination = requestDestination;
-            this.statusReplyDestination = statusReplyDestination;
+            this.requestDestinationName = requestDestinationName;
+            this.destinationResolver = destinationResolver;
         }
 
         public String doInJms( final Session session ) throws JMSException {
@@ -66,10 +70,16 @@ public class JmsRequester {
             try {
                 final String testCorrelationID = UUID.randomUUID().toString();
 
+
+                Destination requestDestination = destinationResolver.resolveDestinationName(session,
+                        requestDestinationName, false);
+                Destination statusReplyDestination = destinationResolver.resolveDestinationName(session,
+                        JmsDestinations.TEST_STATUS, false);
+
                 // Create the consumer first!
                 consumer = session.createConsumer(statusReplyDestination,
                         "TestCorrelationID = '" + testCorrelationID + "'");
-                // TODO: Valid message type
+
                 final TextMessage textMessage = session.createTextMessage((String) msg);
                 textMessage.setStringProperty("TestCorrelationID", testCorrelationID);
 

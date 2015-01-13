@@ -1,11 +1,11 @@
 package org.oiavorskyi.axondemo.itest.cargotracking;
 
 import org.oiavorskyi.axondemo.itest.JmsRequester;
+import org.oiavorskyi.axondemo.api.JmsDestinations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.jms.Destination;
 import java.util.concurrent.Future;
 
 @Configuration
@@ -29,16 +29,12 @@ public class CargoTrackingSUT {
         @Autowired
         private JmsRequester requester;
 
-        @Autowired
-        private Destination inboundCommandsDestination;
-
         @Override
         public Future<String> startCargoTracking( String cargoId, String correlationId,
                                                   String timestamp ) {
             return requester.sendRequest(
                     new CargoTrackingCommandMessage("START", cargoId, correlationId, timestamp)
-                            .toString(),
-                    inboundCommandsDestination);
+                            .toString(), JmsDestinations.INBOUND_COMMANDS);
         }
     }
 
