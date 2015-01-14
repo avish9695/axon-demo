@@ -1,7 +1,10 @@
 package org.oiavorskyi.axondemo.itest;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.broker.Broker;
 import org.apache.activemq.broker.BrokerService;
+import org.apache.activemq.command.ActiveMQDestination;
+import org.junit.After;
 import org.junit.runner.RunWith;
 import org.oiavorskyi.axondemo.Application;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +27,21 @@ import javax.jms.ConnectionFactory;
         initializers = { ExecutionProfileAwareApplicationContextInitializer.class }
 )
 public abstract class AbstractITCase {
+
+    @Autowired
+    Broker broker;
+
+    /**
+     * Ensures that all destinations are removed between tests so no messages left on a broker
+     */
+    @After
+    public void cleanupBroker() throws Exception {
+        ActiveMQDestination[] destinations = broker.getDestinations();
+
+        for ( ActiveMQDestination destination : destinations ) {
+            broker.removeDestination(broker.getAdminConnectionContext(), destination, 100);
+        }
+    }
 
     @Configuration
     public static class TestUtilsConfig {
@@ -51,22 +69,22 @@ public abstract class AbstractITCase {
     public static class IntegrationEnvironmentConfig {
 
         @Bean
-        @DependsOn("integrationBroker")
+        @DependsOn( "integrationBroker" )
         public ConnectionFactory rawConnectionFactory() {
             return new ActiveMQConnectionFactory("vm://integration?create=false");
         }
 
         @Bean
-        public BrokerService integrationBroker() throws Exception {
-            BrokerService broker = new BrokerService();
+        public Broker integrationBroker() throws Exception {
+            BrokerService brokerService = new BrokerService();
 
-            broker.setBrokerName("integration");
-            broker.setPersistent(false);
-            broker.addConnector("tcp://localhost:61616");
-            broker.setUseShutdownHook(false);
-            broker.start();
+            brokerService.setBrokerName("integration");
+            brokerService.setPersistent(false);
+            brokerService.addConnector("tcp://localhost:61616");
+            brokerService.setUseShutdownHook(false);
+            brokerService.start();
 
-            return broker;
+            return brokerService.getBroker();
         }
 
     }
