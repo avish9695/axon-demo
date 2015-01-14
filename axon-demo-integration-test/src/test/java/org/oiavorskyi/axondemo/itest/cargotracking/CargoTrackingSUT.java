@@ -1,11 +1,17 @@
 package org.oiavorskyi.axondemo.itest.cargotracking;
 
-import org.oiavorskyi.axondemo.itest.JmsRequester;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.oiavorskyi.axondemo.api.JmsDestinationsSpec;
+import org.oiavorskyi.axondemo.itest.JmsRequester;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 @Configuration
@@ -29,45 +35,33 @@ public class CargoTrackingSUT {
         @Autowired
         private JmsRequester requester;
 
-        @Override
-        public Future<String> startCargoTracking( String cargoId, String correlationId,
-                                                  String timestamp ) {
-            return requester.sendRequest(
-                    new CargoTrackingCommandMessage("START", cargoId, correlationId, timestamp)
-                            .toString(), JmsDestinationsSpec.INBOUND_COMMANDS);
-        }
-    }
+        private static ObjectMapper om = new ObjectMapper();
 
-    /**
-     * We don't want to use Command class to marshall the input message as this would hide potential
-     * errors when implementation of Command is wrong and our message ends up to not correspond to
-     * the actual API. Besides it is good practice in general to not use implementation level
-     * classes from application in integration tests.
-     */
-    private static final class CargoTrackingCommandMessage {
-
-        final String commandId;
-        final String cargoId;
-        final String correlationId;
-        final String timestamp;
-
-        public CargoTrackingCommandMessage( String commandId, String cargoId, String correlationId,
-                                            String timestamp ) {
-            this.commandId = commandId;
-            this.cargoId = cargoId;
-            this.correlationId = correlationId;
-            this.timestamp = timestamp;
+        static {
+            om.configure(SerializationFeature.WRITE_NULL_MAP_VALUES, false);
+            om.configure(SerializationFeature.INDENT_OUTPUT, true);
+            om.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         }
 
         @Override
-        public String toString() {
-            final StringBuilder sb = new StringBuilder("{");
-            sb.append("\"commandId\": \"").append(commandId).append('\"');
-            sb.append(", \"cargoId\": \"").append(cargoId).append('\"');
-            sb.append(", \"correlationId\": \"").append(correlationId).append('\"');
-            sb.append(", \"timestamp\": \"").append(timestamp).append('\"');
-            sb.append('}');
-            return sb.toString();
+        public Future<String> startCargoTracking( final String cargoId, final String correlationId,
+                                                  final String timestamp ) {
+            Map<String, Object> requestMap = new HashMap<String, Object>() {{
+                put("commandId", "START");
+                put("cargoId", cargoId);
+                put("correlationId", correlationId);
+                put("timestamp", timestamp);
+            }};
+
+            String requestJSON;
+            try {
+                requestJSON = om.writeValueAsString(requestMap);
+            } catch ( JsonProcessingException e ) {
+                throw new RuntimeException(e);
+            }
+
+            return requester.sendRequest(requestJSON, JmsDestinationsSpec.INBOUND_COMMANDS);
         }
     }
+
 }
