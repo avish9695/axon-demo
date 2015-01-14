@@ -16,6 +16,7 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+import javax.validation.Valid;
 
 @Component
 public class CargoTrackingCommandsListener {
@@ -26,7 +27,7 @@ public class CargoTrackingCommandsListener {
     private JmsTemplate jmsTemplate;
 
     @JmsListener( destination = JmsDestinationsSpec.INBOUND_COMMANDS )
-    public void onMessage( @Payload CargoTrackingCommandMessage message,
+    public void onMessage( @Valid @Payload CargoTrackingCommandMessage message,
                            @Header("TestCorrelationID") String testCorrelationID ) {
         log.debug("Received new message: " + message);
 

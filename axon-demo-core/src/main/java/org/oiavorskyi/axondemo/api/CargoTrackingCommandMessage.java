@@ -3,25 +3,28 @@ package org.oiavorskyi.axondemo.api;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.validation.constraints.NotNull;
+
 public final class CargoTrackingCommandMessage {
 
+    @NotNull
     public final String commandId;
 
-    @JsonProperty( required = true )
+    @NotNull
     public final String cargoId;
 
-    @JsonProperty( required = true )
+    @NotNull
     public final String correlationId;
 
-    @JsonProperty( required = true )
+    @NotNull
     public final String timestamp;
 
     @JsonCreator
     public CargoTrackingCommandMessage(
-            @JsonProperty( value = "commandId", required = true ) String commandId,
-            @JsonProperty( value = "cargoId", required = true ) String cargoId,
-            @JsonProperty( value = "correlationId", required = true ) String correlationId,
-            @JsonProperty( value = "timestamp", required = true ) String timestamp
+            @JsonProperty( "commandId" ) String commandId,
+            @JsonProperty( "cargoId" ) String cargoId,
+            @JsonProperty( "correlationId" ) String correlationId,
+            @JsonProperty( "timestamp" ) String timestamp
     ) {
         this.commandId = commandId;
         this.cargoId = cargoId;

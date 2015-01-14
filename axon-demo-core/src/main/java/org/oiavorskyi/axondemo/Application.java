@@ -6,6 +6,7 @@ import org.springframework.context.annotation.*;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -118,6 +119,10 @@ public class Application {
     } )
     public static class Config {
 
+        @Bean
+        public LocalValidatorFactoryBean validatorFactoryBean() {
+            return new LocalValidatorFactoryBean();
+        }
 
     }
 }
