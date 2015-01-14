@@ -1,7 +1,7 @@
 package org.oiavorskyi.axondemo.itest.cargotracking;
 
 import org.oiavorskyi.axondemo.itest.JmsRequester;
-import org.oiavorskyi.axondemo.api.JmsDestinations;
+import org.oiavorskyi.axondemo.api.JmsDestinationsSpec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,7 +34,7 @@ public class CargoTrackingSUT {
                                                   String timestamp ) {
             return requester.sendRequest(
                     new CargoTrackingCommandMessage("START", cargoId, correlationId, timestamp)
-                            .toString(), JmsDestinations.INBOUND_COMMANDS);
+                            .toString(), JmsDestinationsSpec.INBOUND_COMMANDS);
         }
     }
 

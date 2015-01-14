@@ -1,7 +1,7 @@
 package org.oiavorskyi.axondemo.listeners;
 
 import org.oiavorskyi.axondemo.api.CargoTrackingCommandMessage;
-import org.oiavorskyi.axondemo.api.JmsDestinations;
+import org.oiavorskyi.axondemo.api.JmsDestinationsSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,7 @@ public class CargoTrackingCommandsListener {
     @Autowired
     private JmsTemplate jmsTemplate;
 
-    @JmsListener( destination = JmsDestinations.INBOUND_COMMANDS )
+    @JmsListener( destination = JmsDestinationsSpec.INBOUND_COMMANDS )
     public void onMessage( @Payload CargoTrackingCommandMessage message,
                            @Header("TestCorrelationID") String testCorrelationID ) {
         log.debug("Received new message: " + message);
@@ -36,7 +36,7 @@ public class CargoTrackingCommandsListener {
     private void reportStatusIfRequired( final String testCorrelationID, final String status ) {
         if ( testCorrelationID != null ) {
             log.debug("Sending status {} for testing purposes", status);
-            jmsTemplate.send(JmsDestinations.TEST_STATUS, new MessageCreator() {
+            jmsTemplate.send(JmsDestinationsSpec.TEST_STATUS, new MessageCreator() {
                 @Override
                 public Message createMessage( Session session ) throws JMSException {
                     TextMessage message = session.createTextMessage(status);

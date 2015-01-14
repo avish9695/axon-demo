@@ -2,9 +2,8 @@ package org.oiavorskyi.axondemo;
 
 import com.ibm.mq.jms.MQConnectionFactory;
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.oiavorskyi.axondemo.api.CargoTrackingCommandMessage;
+import org.oiavorskyi.axondemo.framework.DestinationBasedJackson2MessageConverter;
 import org.oiavorskyi.axondemo.framework.ExtSimpleJmsListenerContainerFactory;
-import org.oiavorskyi.axondemo.framework.StaticJackson2MessageConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,10 +15,7 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.support.destination.DestinationResolutionException;
 import org.springframework.jms.support.destination.DestinationResolver;
 
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Session;
+import javax.jms.*;
 
 @Configuration
 @PropertySources( {
@@ -56,32 +52,37 @@ public class MessagingConfig {
      */
     @Bean
     public ExtSimpleJmsListenerContainerFactory jmsListenerContainerFactory(
-            ConnectionFactory jmsConnectionFactory, DestinationResolver destinationResolver ) {
+            ConnectionFactory jmsConnectionFactory,
+            DestinationResolver destinationResolver,
+            DestinationBasedJackson2MessageConverter converter ) {
         ExtSimpleJmsListenerContainerFactory factory =
                 new ExtSimpleJmsListenerContainerFactory();
         factory.setConnectionFactory(jmsConnectionFactory);
         factory.setDestinationResolver(destinationResolver);
-        factory.setMessageConverter(
-                new StaticJackson2MessageConverter(CargoTrackingCommandMessage.class));
+        factory.setMessageConverter(converter);
         return factory;
     }
 
     @Bean
     public DestinationResolver externalizableDestinationResolver(
-            final GenericApplicationContext ctx ) {
+            final GenericApplicationContext ctx,
+            final DestinationBasedJackson2MessageConverter converter ) {
         return new DestinationResolver() {
             @Override
-            public Destination resolveDestinationName( Session session, String destinationName,
+            public Destination resolveDestinationName( Session session, String destinationAlias,
                                                        boolean pubSubDomain ) throws JMSException {
-                String actualDestinationName = ctx.getEnvironment().getProperty(destinationName);
+                String actualDestinationName = ctx.getEnvironment().getProperty(destinationAlias);
 
                 if ( actualDestinationName == null ) {
-                    log.error("Cannot find required destination {} in properties", destinationName);
-                    throw new DestinationResolutionException("Destination " + destinationName +
-                            " cannot be resolved");
+                    log.error("Cannot resolve destination for alias {}", destinationAlias);
+                    throw new DestinationResolutionException("Destination with alias " +
+                            destinationAlias + " cannot be resolved");
                 }
 
-                return session.createQueue(actualDestinationName);
+                Queue queue = session.createQueue(actualDestinationName);
+
+                converter.registerDestinationAlias(queue.toString(), destinationAlias);
+                return queue;
             }
         };
     }

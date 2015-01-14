@@ -1,7 +1,7 @@
 package org.oiavorskyi.axondemo.itest;
 
 
-import org.oiavorskyi.axondemo.api.JmsDestinations;
+import org.oiavorskyi.axondemo.api.JmsDestinationsSpec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.core.SessionCallback;
@@ -74,7 +74,7 @@ public class JmsRequester {
                 Destination requestDestination = destinationResolver.resolveDestinationName(session,
                         requestDestinationName, false);
                 Destination statusReplyDestination = destinationResolver.resolveDestinationName(session,
-                        JmsDestinations.TEST_STATUS, false);
+                        JmsDestinationsSpec.TEST_STATUS, false);
 
                 // Create the consumer first!
                 consumer = session.createConsumer(statusReplyDestination,
