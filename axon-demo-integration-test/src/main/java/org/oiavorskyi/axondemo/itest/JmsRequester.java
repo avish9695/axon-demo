@@ -74,7 +74,7 @@ public class JmsRequester {
                 Destination requestDestination = destinationResolver.resolveDestinationName(session,
                         requestDestinationName, false);
                 Destination statusReplyDestination = destinationResolver.resolveDestinationName(session,
-                        JmsDestinationsSpec.TEST_STATUS, false);
+                        JmsDestinationsSpec.STATUS, false);
 
                 // Create the consumer first!
                 consumer = session.createConsumer(statusReplyDestination,

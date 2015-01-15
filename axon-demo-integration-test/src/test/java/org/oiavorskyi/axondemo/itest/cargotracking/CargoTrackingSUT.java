@@ -60,7 +60,7 @@ public class CargoTrackingSUT {
                 throw new RuntimeException(e);
             }
 
-            return requester.sendRequest(requestJSON, JmsDestinationsSpec.INBOUND_COMMANDS);
+            return requester.sendRequest(requestJSON, JmsDestinationsSpec.COMMANDS);
         }
     }
 

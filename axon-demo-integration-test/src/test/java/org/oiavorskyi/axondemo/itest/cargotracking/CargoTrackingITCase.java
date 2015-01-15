@@ -30,7 +30,7 @@ public class CargoTrackingITCase extends AbstractITCase {
         String status = api.startCargoTracking(null, "testCorrelationId", "someTimestamp")
                            .get(1000, TimeUnit.MILLISECONDS);
 
-        assertThat(status, is("FAILURE"));
+        assertThat(status, is("FAIL"));
     }
 
 }
