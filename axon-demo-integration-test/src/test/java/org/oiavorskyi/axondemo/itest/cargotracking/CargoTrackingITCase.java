@@ -25,4 +25,12 @@ public class CargoTrackingITCase extends AbstractITCase {
         // Now we could start checking for specific outcomes
     }
 
+    @Test
+    public void shouldFailIfRequiredParametersAreMissing() throws Exception {
+        String status = api.startCargoTracking(null, "testCorrelationId", "someTimestamp")
+                           .get(1000, TimeUnit.MILLISECONDS);
+
+        assertThat(status, is("FAIL"));
+    }
+
 }

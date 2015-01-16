@@ -2,20 +2,20 @@ package org.oiavorskyi.axondemo;
 
 import com.ibm.mq.jms.MQConnectionFactory;
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.oiavorskyi.axondemo.api.JmsDestinationsSpec;
+import org.oiavorskyi.axondemo.framework.ExtSimpleJmsListenerContainerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
+import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.jms.annotation.EnableJms;
 import org.springframework.jms.connection.CachingConnectionFactory;
 import org.springframework.jms.core.JmsTemplate;
-import org.springframework.jms.listener.SimpleMessageListenerContainer;
-import org.springframework.util.ClassUtils;
+import org.springframework.jms.support.destination.DestinationResolutionException;
+import org.springframework.jms.support.destination.DestinationResolver;
 
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
+import javax.jms.*;
 
 @Configuration
 @PropertySources( {
@@ -23,26 +23,20 @@ import java.lang.reflect.InvocationTargetException;
         @PropertySource( value = "/messaging-${execution.profile}.properties",
                 ignoreResourceNotFound = true )
 } )
+@EnableJms
 public class MessagingConfig {
 
     private static Logger log = LoggerFactory.getLogger(MessagingConfig.class);
 
-    @Value( "#{environment.getProperty('messaging.connection.pool.size')}" )
+    @Value( "#{environment['messaging.connection.pool.size']}" )
     private int connectionPoolSize;
 
-    @Value( "#{environment.getProperty('messaging.dest.impl.class')}" )
-    private Class<Destination> destinationImplClass;
-
-    // Destinations
-    @Value( "#{environment.getProperty('messaging.dest.test.status')}" )
-    private String testStatusDestinationName;
-
-    @Value( "#{environment.getProperty('messaging.dest.inbound.commands')}" )
-    private String inboundCommandsDestinationName;
-
     @Bean
-    public JmsTemplate jmsTemplate(ConnectionFactory jmsConnectionFactory) {
-        return new JmsTemplate(jmsConnectionFactory);
+    public JmsTemplate jmsTemplate( ConnectionFactory jmsConnectionFactory,
+                                    DestinationResolver destinationResolver ) {
+        JmsTemplate jmsTemplate = new JmsTemplate(jmsConnectionFactory);
+        jmsTemplate.setDestinationResolver(destinationResolver);
+        return jmsTemplate;
     }
 
     @Bean
@@ -53,51 +47,46 @@ public class MessagingConfig {
         return connFactory;
     }
 
+    /**
+     * Creates JmsListenerContainers when needed for specific listeners
+     */
     @Bean
-    public Destination inboundCommandsDestination()
-            throws IllegalAccessException, InstantiationException, InvocationTargetException {
-        return createEnvironmentSpecificDestination(inboundCommandsDestinationName);
-    }
-
-    @Bean
-    public Destination testStatusDestination()
-            throws IllegalAccessException, InstantiationException, InvocationTargetException {
-        return createEnvironmentSpecificDestination(testStatusDestinationName);
-    }
-
-    @Bean
-    @Autowired
-    public SimpleMessageListenerContainer commandsJmsListener(
-            CommandsListener listener,
+    public ExtSimpleJmsListenerContainerFactory jmsListenerContainerFactory(
             ConnectionFactory jmsConnectionFactory,
-            Destination inboundCommandsDestination ) {
-        SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
+            DestinationResolver destinationResolver ) {
 
-        container.setConnectionFactory(jmsConnectionFactory(jmsConnectionFactory));
-        container.setDestination(inboundCommandsDestination);
-        container.setConcurrentConsumers(1);
-        container.setMessageListener(listener);
+        ExtSimpleJmsListenerContainerFactory factory =
+                new ExtSimpleJmsListenerContainerFactory();
 
-        return container;
+        factory.setConnectionFactory(jmsConnectionFactory);
+        factory.setDestinationResolver(destinationResolver);
+        factory.setMessageConverter(null);
+
+        return factory;
     }
 
+    @Bean
+    public DestinationResolver externalizableDestinationResolver(
+            final GenericApplicationContext ctx,
+            final JmsDestinationsSpec spec ) {
+        return new DestinationResolver() {
+            @Override
+            public Destination resolveDestinationName( Session session, String destinationAlias,
+                                                       boolean pubSubDomain ) throws JMSException {
+                String actualDestinationName = spec.getDestinationNames().get(destinationAlias);
 
-    private Destination createEnvironmentSpecificDestination( String destinationName )
-            throws IllegalAccessException, InvocationTargetException, InstantiationException {
-        log.debug("Creating {} destination using {} class", destinationName, destinationImplClass);
+                if ( actualDestinationName == null ) {
+                    log.error("Cannot resolve destination for alias {}", destinationAlias);
+                    throw new DestinationResolutionException("Destination with alias " +
+                            destinationAlias + " cannot be resolved");
+                }
 
-        if ( !ClassUtils.isAssignable(Destination.class, destinationImplClass) ) {
-            log.error("Creation of {} destination failed - {} is not assignable to javax.jms" +
-                    ".Destination. Please check value of property 'messaging.dest.impl.class' in " +
-                    "configuration", destinationName, destinationImplClass);
-            throw new IllegalArgumentException(destinationImplClass +
-                    " is not assignable to javax.jms.Destination");
-        }
+                Queue queue = session.createQueue(actualDestinationName);
 
-        Constructor<Destination> constructor =
-                ClassUtils.getConstructorIfAvailable(destinationImplClass, String.class);
-
-        return constructor.newInstance(destinationName);
+                spec.bindAliasToDestination(destinationAlias, queue);
+                return queue;
+            }
+        };
     }
 
     @Profile( "default" )
