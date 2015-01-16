@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.core.MessageCreator;
+import org.springframework.jms.support.converter.MessageConversionException;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -34,8 +35,11 @@ public class CargoTrackingCommandsListener {
     @Autowired
     private Validator validator;
 
+    @Value("#{environment['messaging.content.logging.single.line']}")
+    private boolean isNewLineReplacementEnabled = false;
+
     @Value( "#{spec.isTraceEnabled(T(org.oiavorskyi.axondemo.api.JmsDestinationsSpec).COMMANDS)}" )
-    private Boolean isTraceEnabled;
+    private boolean isTraceEnabled = false;
 
 
     @JmsListener( destination = JmsDestinationsSpec.COMMANDS )
@@ -48,9 +52,10 @@ public class CargoTrackingCommandsListener {
 
         try {
             CargoTrackingCommandMessage commandMessage = convertAndValidateMessage(jmsMessage);
-        } catch ( Exception e ) {
+        } catch ( JMSDataExtractionException e ) {
             executionStatus = "FAIL";
-            log.error("Unable to unmarshal and validate message", e);
+            log.error("Input message content extraction has failed: {}",
+                    e.getDetailedDescription(true, isNewLineReplacementEnabled));
         }
 
         reportStatusIfRequired(testCorrelationID, executionStatus);
@@ -62,7 +67,12 @@ public class CargoTrackingCommandsListener {
                     jmsMessage.getJMSCorrelationID(),
                     jmsMessage.getJMSDestination());
             if ( isTraceEnabled ) {
-                log.debug("Message content:\n{}", jmsMessage.getText());
+                String payload = jmsMessage.getText();
+                if (isNewLineReplacementEnabled) {
+                    payload = payload.replace('\n', ' ');
+                }
+                log.debug("Message content:{}{}", (isNewLineReplacementEnabled ? " " : '\n'),
+                        payload);
             }
         } catch ( JMSException e ) {
             // Ignore as nothing could be done when we can't extract information from message
@@ -85,16 +95,27 @@ public class CargoTrackingCommandsListener {
     }
 
     private CargoTrackingCommandMessage convertAndValidateMessage( TextMessage jmsMessage )
-            throws Exception {
-        CargoTrackingCommandMessage message = (CargoTrackingCommandMessage)
-                converter.fromMessage(jmsMessage);
+            throws JMSDataExtractionException {
+        CargoTrackingCommandMessage message;
+        try {
+            message = (CargoTrackingCommandMessage) converter.fromMessage(jmsMessage);
+        } catch ( JMSException | MessageConversionException e ) {
+            throw JMSDataExtractionException.Builder
+                    .forJmsMessage("Input message content extraction has failed", jmsMessage)
+                    .withCause(e)
+                    .build();
+        }
 
         BeanPropertyBindingResult validationResults =
                 new BeanPropertyBindingResult(message, "cargoTrackingCommand");
         validator.validate(message, validationResults);
 
-        if (validationResults.hasErrors()) {
-            throw new IllegalAccessException("Invalid object");
+        if ( validationResults.hasErrors() ) {
+            throw JMSDataExtractionException.Builder
+                    .forJmsMessage("Input message content extraction has failed", jmsMessage)
+                    .withExtractedObject(message)
+                    .withValidationErrors(validationResults)
+                    .build();
         }
 
         return message;
